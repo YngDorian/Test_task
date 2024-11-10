@@ -1,0 +1,75 @@
+#include <iostream>
+#include <atomic>
+#include <memory>
+
+template <typename T, size_t CAPACITY>
+class CyclicQueue {
+private:
+    T data[CAPACITY];
+    std::atomic<size_t> head;
+    std::atomic<size_t> tail;
+public:
+    CyclicQueue() : head(0), tail(0) {}
+    // Конструктор копирования
+    CyclicQueue(const CyclicQueue& other) {
+        head.store(other.head.load());
+        tail.store(other.tail.load());
+        for (size_t i = 0; i < CAPACITY; ++i) {
+            data[i] = other.data[i];
+        }
+    }
+    // Оператор присваивания
+    CyclicQueue& operator=(const CyclicQueue& other) {
+        if (this != &other) {
+            head.store(other.head.load());
+            tail.store(other.tail.load());
+            for (size_t i = 0; i < CAPACITY; ++i) {
+                data[i] = other.data[i];
+            }
+        }
+        return *this;
+    }
+    bool enqueue(const T& item) {
+        size_t current_tail = tail.load();
+        size_t new_tail = (current_tail + 1) % CAPACITY;
+
+        if (new_tail == head.load()) {
+            return false; // Очередь полна
+        }
+        data[current_tail] = item;
+        tail.store(new_tail);
+        return true;
+    }
+    bool dequeue(T& item) {
+        size_t current_head = head.load();
+        if (current_head == tail.load()) {
+            return false; // Очередь пуста
+        }
+        item = data[current_head];
+        head.store((current_head + 1) % CAPACITY);
+        return true;
+    }
+    ~CyclicQueue() {
+        while (dequeue(data[head.load()])) {
+            // Удаляем элементы из очереди
+        }
+    }
+};
+// Пример использования:
+int main() {
+    CyclicQueue<int, 5> queue;
+    int item;
+    // Заполнение очереди
+    for (int i = 1; i <= 5; ++i) {
+        if (queue.enqueue(i)) {
+            std::cout << "Enqueued: " << i << std::endl;
+        } else {
+            std::cout << "Queue is full!" << std::endl;
+        }
+    }
+    // Вывод элементов из очереди
+    while (queue.dequeue(item)) {
+        std::cout << "Dequeued: " << item << std::endl;
+    }
+    return 0;
+}
